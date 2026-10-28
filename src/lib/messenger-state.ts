@@ -8,6 +8,13 @@ export function restoreWorkspace(raw:string|null):Workspace|null{
 export function openConversation(state:Workspace,tab:ConversationTab):Workspace{
  return {tabs:state.tabs.some(t=>t.key===tab.key&&t.agentId===tab.agentId)?state.tabs:[...state.tabs,tab],activeKey:tab.key};
 }
+export function closeConversation(state:Workspace,key:string,fallback:ConversationTab):Workspace{
+ const index=state.tabs.findIndex(t=>t.key===key);
+ if(index<0)return state;
+ const tabs=state.tabs.filter(t=>t.key!==key);
+ if(!tabs.length)return {tabs:[fallback],activeKey:fallback.key};
+ return {tabs,activeKey:state.activeKey===key?tabs[Math.min(index,tabs.length-1)].key:state.activeKey};
+}
 export function readShortcuts(raw:string|null):Shortcut[]|null{
  try{const s=JSON.parse(raw||'null');if(!Array.isArray(s)||s.some(t=>!t||!['id','label','agentId','prompt'].every(k=>typeof t[k]==='string'&&t[k].trim())||!['chat','task'].includes(t.mode)))return null;return s;}catch{return null;}
 }

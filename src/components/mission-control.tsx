@@ -5,7 +5,7 @@ import {Menu,Plus,ArrowUp,SlidersHorizontal,X,ChevronDown} from 'lucide-react';
 import {BridgeControl} from './bridge-control';
 import {VoiceDictation} from './voice-dictation';
 import {conversationHistory,threadMessages} from '@/lib/chat-history';
-import {openConversation,restoreWorkspace,readShortcuts,searchHistory,type Workspace,type Shortcut} from '@/lib/messenger-state';
+import {openConversation,closeConversation,restoreWorkspace,readShortcuts,searchHistory,type Workspace,type Shortcut} from '@/lib/messenger-state';
 type Agent={id:string;name:string;status:string;tasksCompleted:number;crons?:unknown[];observedAt?:string;error?:string};
 type Row={kind?:string;inputMode?:string;transcript?:string;id:string;agentId:string;sessionKey:string;prompt:string;status:string;result?:string;error?:string;createdAt:string;authorizedAt?:string;decidedAt?:string};
 export function BridgeStatus(){
@@ -33,6 +33,12 @@ export function MissionControl({initialPanel=''}:{initialPanel?:''|'tasks'}={}){
   setWorkspace(s=>openConversation(s,{key,agentId:recipient}));setAgentId(recipient);setSessionKey(key);clearDraft();follow.current=true;
  }
  function newConversation(){selectThread(crypto.randomUUID(),'default');setPanel('');}
+ function closeTab(key:string){
+  if(busy)return;
+  const next=closeConversation(workspace,key,{key:crypto.randomUUID(),agentId:'default'});
+  setWorkspace(next);
+  if(sessionKey===key){const tab=next.tabs.find(t=>t.key===next.activeKey)!;setAgentId(tab.agentId);setSessionKey(tab.key);clearDraft();follow.current=true;}
+ }
  function selectAgent(recipient:string){
   const previous=[...workspace.tabs].reverse().find(t=>t.agentId===recipient);
   selectThread(previous?.key||crypto.randomUUID(),recipient);
@@ -73,7 +79,7 @@ export function MissionControl({initialPanel=''}:{initialPanel?:''|'tasks'}={}){
  const bridgeLabel=bridge?.online?bridge.enabled?'Bridge ON':'Bridge OFF':bridge?'Bridge OFFLINE':'Bridge UNKNOWN';
  return <main className="mc-app">
   <header className="mc-header"><button className="mc-icon" aria-label="Open menu and history" onClick={()=>setPanel('menu')}><Menu size={21}/></button><Link href="/" className="mc-brand">Mission Control<span className="mc-brand-dot">.</span></Link><span className="mc-header-recipient">{name}</span><div className="mc-header-actions"><button className={`mc-bridge ${ready?'is-ready':''}`} onClick={()=>setPanel('bridge')} title="Bridge controls"><span/>{bridgeLabel}</button><button className="mc-icon" aria-label="New conversation" disabled={busy} onClick={newConversation}><Plus size={22}/></button></div></header>
-  <nav className="mc-tabs" aria-label="Open conversations">{workspace.tabs.map((tab,index)=><button key={tab.key} aria-current={sessionKey===tab.key?'page':undefined} disabled={busy} onClick={()=>selectThread(tab.key,tab.agentId)}>{agents.find(a=>a.id===tab.agentId)?.name||tab.agentId.toUpperCase()} · {tab.agentId===agentId?history.find(t=>t.key===tab.key)?.title||`Chat ${index+1}`:`Chat ${index+1}`}</button>)}<button aria-label="Add conversation tab" disabled={busy} onClick={newConversation}><Plus size={16}/></button></nav>
+  <nav className="mc-tabs" aria-label="Open conversations">{workspace.tabs.map((tab,index)=><div className="mc-tab-item" key={tab.key}><button aria-current={sessionKey===tab.key?'page':undefined} disabled={busy} onClick={()=>selectThread(tab.key,tab.agentId)}>{agents.find(a=>a.id===tab.agentId)?.name||tab.agentId.toUpperCase()} · {tab.agentId===agentId?history.find(t=>t.key===tab.key)?.title||`Chat ${index+1}`:`Chat ${index+1}`}</button><button className="mc-tab-close" aria-label={`Close ${agents.find(a=>a.id===tab.agentId)?.name||tab.agentId} conversation tab ${index+1}`} title="Close tab — history is kept" disabled={busy} onClick={()=>closeTab(tab.key)}><X size={14}/></button></div>)}<button aria-label="Add conversation tab" disabled={busy} onClick={newConversation}><Plus size={16}/></button></nav>
   <div className="mc-thread-label"><span>{title}</span><button onClick={()=>setPanel('approvals')}><SlidersHorizontal size={15}/> Approvals{pending.length>0&&<b>{pending.length}</b>}</button></div>
   <div className="mc-conversation" ref={scrollRef} onScroll={()=>{const el=scrollRef.current;if(el)follow.current=el.scrollHeight-el.scrollTop-el.clientHeight<100;}} role="region" aria-label={`Conversation with ${name}`} tabIndex={0}>
    {!messages.length?<div className="mc-empty"><div className="mc-monogram" aria-hidden="true">mc<span>.</span></div><h1>{loaded?'What’s on your mind?':'Your conversation starts here.'}</h1><p>{agentId==='default'?'Start with MIA. Your coordinator delegates and tracks the work.':`Direct conversation with ${name}. MIA remains your primary coordinator.`}</p></div>:<div className="mc-messages">{messages.map(r=><article className="mc-exchange" key={r.id}><div className="mc-owner"><span>You</span><p>{r.prompt}</p></div><div className="mc-reply"><strong>{name}</strong>{r.result&&<div className="mc-result">{r.result}</div>}{r.error&&<p role="alert" className="mc-error">{r.error}</p>}{!r.result&&!r.error&&<p className="mc-pending" role="status">{r.status==='awaiting_approval'?'Waiting for your approval.':r.status==='running'?'Request running. After a bridge interruption, inspect the outcome before retrying.':`Request ${r.status}.`}</p>}<details className="mc-request-details"><summary>{r.status.replaceAll('_',' ')} · {new Date(r.createdAt).toLocaleString()}</summary><p>Request {r.id}<br/>Authorized: {r.authorizedAt||'none'}<br/>Decision: {r.decidedAt||'pending'}</p>{r.transcript&&<p>Original voice transcript: {r.transcript}</p>}</details></div></article>)}</div>}

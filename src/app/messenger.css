@@ -66,7 +66,7 @@ html body{background:#fff;color:#171717}
 .mc-dialog>header button{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:#f5f5f5}
 .mc-panel-content{padding:22px;font-size:14px;line-height:1.65;overflow-wrap:anywhere}
 .mc-panel-content pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
-.mc-drawer{margin:0 0 0 auto;width:min(390px,100%);height:100dvh;max-height:100dvh;border:0;border-radius:20px 0 0 20px}
+.mc-drawer{margin:0 auto 0 0;width:min(390px,100%);height:100dvh;max-height:100dvh;border:0;border-radius:0 20px 20px 0}
 .mc-nav{display:flex;flex-direction:column;gap:3px;padding-bottom:28px;border-bottom:1px solid #eaeaea}
 .mc-nav>a,.mc-nav>button{border:0;border-radius:10px;background:none;text-align:left;min-height:44px;padding:10px 12px;display:flex;justify-content:space-between;color:#222;font-size:14px}
 .mc-nav>a:hover,.mc-nav>button:hover{background:#f4f4f4}
@@ -102,6 +102,11 @@ html body{background:#fff;color:#171717}
 .mc-legacy{--bg:#0a0b0d;--surface-1:#101113;--surface-2:#16181b;--surface-3:#1e2024;--text:#e7e8ea;--text-2:#a0a3a8;--text-3:#6b6e74;--text-4:#4b4e54;--line:#ffffff14;--line-strong:#ffffff22;--accent:#6ea8fe;background:var(--bg);color:var(--text);min-height:100dvh;color-scheme:dark}
 .mc-tabs{display:flex;gap:6px;overflow-x:auto;flex-shrink:0;width:min(100%,820px);margin:0 auto;padding:2px 24px 8px;scrollbar-width:thin}
 .mc-tabs button{display:flex;align-items:center;max-width:210px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:1px solid #eee;background:#fff;border-radius:20px;padding:8px 14px;min-height:40px;font-size:12px;color:#666}
+.mc-tab-item{display:flex;align-items:center;flex-shrink:0;gap:0;border:1px solid #eee;border-radius:22px;background:#fff}
+.mc-tabs .mc-tab-item>button{border:0;background:transparent}
+.mc-tabs .mc-tab-close{min-width:36px;padding:8px;justify-content:center;color:#777}
+.mc-tabs .mc-tab-close:hover{background:#f1f1f1;color:#171717}
+.mc-tab-item:has(button[aria-current=page]){background:#f1f1f1;border-color:#ddd}
 .mc-tabs button[aria-current=page]{background:#f1f1f1;border-color:#ddd;color:#171717}
 .mc-shortcuts{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:thin}
 .mc-shortcuts button{display:flex;align-items:center;gap:8px;white-space:nowrap;border:0;border-radius:20px;background:#f2f2f2;color:#444;padding:11px 17px;font-size:12px;min-height:44px}
