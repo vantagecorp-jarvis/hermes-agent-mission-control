@@ -9,7 +9,7 @@ export async function GET() {
   if ((await getServerSession(authOptions))?.user?.id !== 'owner') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const row = await prisma.bridgeControl.findUnique({ where: { id: 'owner' } });
   const online = !!row && Date.now() - row.heartbeatAt.getTime() < 15_000;
-  return NextResponse.json({ online, enabled: online && row?.enabled === true, bootId: online ? row?.bootId : null, supported: ['hermes.version'], blocked: 'All prompts, execution, cron/kanban mutations, briefing generation and wiki access' }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ online, enabled: online && row?.enabled === true, bootId: online ? row?.bootId : null, supported: ['bridge.agent'], blocked: 'No automatic bypass of dangerous-command approvals; no direct wiki editor or cron mutation API' }, { headers: { 'Cache-Control': 'no-store' } });
 }
 export async function POST(req: Request) {
   if ((await getServerSession(authOptions))?.user?.id !== 'owner') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

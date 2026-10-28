@@ -14,8 +14,8 @@ export function freshPasswordGate(clock = Date.now) {
 }
 
 export function operationPolicy(kind: unknown) {
-  const supported = kind === 'hermes.version';
-  return { supported, approvalRequired: !supported };
+  const supported = kind === 'hermes.version' || kind === 'bridge.agent';
+  return { supported, approvalRequired: kind !== 'hermes.version' };
 }
 
 export function controlOriginAllowed(headers: Headers, canonical: string | undefined) {

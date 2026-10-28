@@ -467,6 +467,14 @@ model AgentRequest {
   result        String?
   error         String?
   hermesTaskId  String?
+  agentId       String?
+  sessionKey    String?
+  inputMode     String    @default("text")
+  transcript    String?
+  authorizedBy  String?
+  authorizedAt  DateTime?
+  decidedBy     String?
+  bootId        String?
   decidedAt     DateTime?
   startedAt     DateTime?
   finishedAt    DateTime?
@@ -475,6 +483,7 @@ model AgentRequest {
 
   @@index([status])
   @@index([createdAt])
+  @@index([agentId, sessionKey, createdAt])
 }
 
 model AgentEvent {

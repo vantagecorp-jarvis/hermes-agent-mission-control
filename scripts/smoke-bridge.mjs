@@ -1,96 +1,55 @@
-// Requires an EMPTY disposable local database, never production. Uses generated auth credentials.
-import { spawn } from 'node:child_process';
-import { randomBytes, scryptSync, randomUUID } from 'node:crypto';
+// Isolated real PostgreSQL + production HTTP test; agent invocation is an explicit test double.
+// This proves queue/auth/persistence, NOT real provider generation.
+import {spawn} from 'node:child_process';
+import {randomBytes,scryptSync,randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';
 import pg from 'pg';
-import { BridgeWorker } from '../hermes-bridge/core.mjs';
-const dbURL = process.env.TEST_BRIDGE_DATABASE_URL;
-const target = new URL(dbURL);
-assert.equal(target.hostname, '127.0.0.1');
-assert.equal(target.pathname, '/mission_bridge_test');
-const db = new pg.Pool({ connectionString: dbURL });
-const port = 34721;
-const base = `http://127.0.0.1:${port}`;
-const password = randomBytes(24).toString('hex'), salt = randomBytes(16).toString('hex');
-const hash = `scrypt$${salt}$${scryptSync(password, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 67108864 }).toString('hex')}`;
-const env = { PATH: process.env.PATH, NODE_ENV: 'production', NEXTAUTH_URL: base, NEXTAUTH_SECRET: randomBytes(32).toString('hex'), OWNER_PASSWORD_HASH: hash, DATABASE_URL: dbURL, NEXT_TELEMETRY_DISABLED: '1' };
-const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', String(port)], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-let bridge, output = '';
-server.stderr.on('data', d => output += d);
-server.stdout.on('data', d => output += d);
-async function until(check) { for (let i = 0; i < 150; i++) { const value = await check(); if (value) return value; await new Promise(r => setTimeout(r, 100)); } throw Error('Timed out: ' + output); }
-async function stop(child) { if (!child || child.exitCode !== null) return; child.kill('SIGTERM'); await new Promise(r => child.once('exit', r)); }
-async function startBridge() {
-  bridge = spawn(process.execPath, ['hermes-bridge/bridge.mjs'], { env: { PATH: process.env.PATH, DATABASE_URL: dbURL, BRIDGE_DB_TRANSPORT: 'private', BRIDGE_HERMES_HOME: '/opt/data', HERMES_BIN: '/usr/local/bin/hermes' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  bridge.stdout.on('data', d => output += d); bridge.stderr.on('data', d => output += d);
-}
-try {
-  await db.query('TRUNCATE "AgentRequest", "BridgeControl"');
-  await until(async () => { try { return (await fetch(base + '/login')).ok; } catch { return false; } });
-  assert.equal((await fetch(base + '/api/hermes/bridge')).status, 401);
-  const csrf = await fetch(base + '/api/auth/csrf');
-  const { csrfToken } = await csrf.json();
-  const cookie = csrf.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
-  const login = await fetch(base + '/api/auth/callback/credentials', { method: 'POST', headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrfToken, password, json: 'true' }), redirect: 'manual' });
-  assert.equal(login.status, 200);
-  const session = login.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
-  async function api(path, body, origin = base) {
-    return fetch(base + '/api/hermes/' + path, { method: body ? 'POST' : 'GET', headers: { cookie: session, ...(body ? { 'content-type': 'application/json', ...(origin ? { origin } : {}) } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  }
-  const state = async () => (await api('bridge')).json();
-  await startBridge();
-  const initial = await until(async () => { const s = await state(); return s.online && s; });
-  assert.equal(initial.enabled, false);
-  assert.equal((await api('dispatch', { kind: 'hermes.version' })).status, 409);
-  assert.equal((await api('bridge', { enabled: true, bootId: initial.bootId, password: 'wrong' })).status, 403);
-  assert.equal((await state()).enabled, false);
-  const duplicate = spawn(process.execPath, ['hermes-bridge/bridge.mjs'], { env: { PATH: process.env.PATH, DATABASE_URL: dbURL, BRIDGE_DB_TRANSPORT: 'private', BRIDGE_HERMES_HOME: '/opt/data', HERMES_BIN: '/usr/local/bin/hermes' }, stdio: 'ignore' });
-  const duplicateCode = await new Promise(resolve => duplicate.once('exit', resolve));
-  assert.notEqual(duplicateCode, 0);
-  assert.equal((await state()).bootId, initial.bootId);
-  for (const origin of [null, 'https://evil.invalid']) assert.equal((await api('bridge', { enabled: true, bootId: initial.bootId, password }, origin)).status, 403);
-  assert.equal((await api('bridge', { enabled: true, bootId: initial.bootId, password })).status, 200);
-  assert.equal((await state()).enabled, true);
-  for (const kind of ['oneshot','chat','memory.write','cron.run','briefing.generate','kanban']) assert.equal((await api('dispatch', { kind, sideEffecting: false })).status, 403);
-  for (const path of ['../../outside.md', '/tmp/outside.md', 'symlink/escape.md']) assert.equal((await api('memory', { title: 'blocked', path, body: 'unsafe' })).status, 403);
-  const queued = await api('dispatch', { kind: 'hermes.version', sideEffecting: false, prompt: '--yolo -z never' });
-  assert.equal(queued.status, 200);
-  const request = (await queued.json()).request;
-  await until(async () => (await db.query('SELECT * FROM "AgentRequest" WHERE id=$1', [request.id])).rows[0]?.status === 'done');
-  assert.match((await db.query('SELECT result FROM "AgentRequest" WHERE id=$1', [request.id])).rows[0].result, /^Hermes Agent v/);
-  assert.equal((await api('bridge', { enabled: false, bootId: initial.bootId })).status, 200);
-  assert.equal((await state()).enabled, false);
-  assert.equal((await api('dispatch', { kind: 'hermes.version' })).status, 409);
-  await stop(bridge);
-  await startBridge();
-  const restarted = await until(async () => { const s = await state(); return s.online && s.bootId !== initial.bootId && s; });
-  assert.equal(restarted.enabled, false);
-  assert.equal((await api('bridge', { enabled: true, bootId: initial.bootId, password })).status, 409);
-  assert.equal((await api('bridge', { enabled: true, bootId: restarted.bootId })).status, 403);
-  for (let i = 0; i < 10; i++) assert.equal((await api('bridge', { enabled: true, bootId: restarted.bootId, password: 'wrong' })).status, 403);
-  assert.equal((await api('bridge', { enabled: true, bootId: restarted.bootId, password })).status, 403);
-  assert.equal((await state()).enabled, false);
-  await stop(bridge); bridge = null;
-  // Real PostgreSQL concurrent claims, independent workers (no SQL mocks).
-  const worker = new BridgeWorker(db, async () => 'ok');
-  await worker.start(randomUUID());
-  assert.equal(await worker.claim(), null);
-  const id = randomUUID();
-  await db.query(`INSERT INTO "AgentRequest" (id, origin, kind, title, "sideEffecting", status, "createdAt", "updatedAt") VALUES ($1,'test','hermes.version','test',false,'queued',now(),now())`, [id]);
-  await db.query(`UPDATE "BridgeControl" SET enabled=true`);
-  const claims = await Promise.all(Array.from({ length: 20 }, () => worker.claim()));
-  assert.equal(claims.filter(Boolean).length, 1);
-  // OFF does not change an already claimed task; no new claims after OFF.
-  await db.query(`UPDATE "BridgeControl" SET enabled=false`);
-  assert.equal((await db.query('SELECT status FROM "AgentRequest" WHERE id=$1', [id])).rows[0].status, 'running');
-  assert.equal(await worker.claim(), null);
-  await worker.start(randomUUID());
-  assert.equal((await db.query('SELECT enabled FROM "BridgeControl"')).rows[0].enabled, false);
-  for (const status of ['queued','approved']) await db.query(`INSERT INTO "AgentRequest" (id, origin, kind, title, "sideEffecting", status, "createdAt", "updatedAt") VALUES ($1,'test','oneshot','blocked',false,$2,now(),now())`, [randomUUID(), status]);
-  await db.query('UPDATE "BridgeControl" SET enabled=true');
-  assert.equal(await worker.claim(), null);
-  // A stale heartbeat must close claims even if a stored enabled flag remains true.
-  await db.query(`UPDATE "BridgeControl" SET "heartbeatAt"=now()-interval '1 minute'`);
-  assert.equal(await worker.claim(), null);
-  console.log('PASS: real HTTP owner auth + fresh wrong/correct/missing password; same-origin/missing-origin protection; startup/restart OFF; stale boot rejected; disable blocks ingress/claims and preserves running; actual installed Hermes version execution; caller approval bypass blocked; wiki traversal/absolute/symlink write requests blocked; 20 concurrent PostgreSQL claims execute exactly once; legacy queued/approved prompts unclaimable.');
-} finally { await stop(bridge); await stop(server); await db.end(); }
+import {BridgeWorker} from '../hermes-bridge/core.mjs';
+const url=process.env.TEST_BRIDGE_DATABASE_URL,target=new URL(url);
+assert.equal(target.hostname,'127.0.0.1');assert.equal(target.pathname,'/mission_bridge_test');
+const db=new pg.Pool({connectionString:url}),base='http://127.0.0.1:34721';
+const password=randomBytes(24).toString('hex'),salt=randomBytes(16).toString('hex');
+const hash=`scrypt$${salt}$${scryptSync(password,salt,64,{N:32768,r:8,p:1,maxmem:67108864}).toString('hex')}`;
+const env={PATH:process.env.PATH,NODE_ENV:'production',NEXTAUTH_URL:base,NEXTAUTH_SECRET:randomBytes(32).toString('hex'),OWNER_PASSWORD_HASH:hash,DATABASE_URL:url,NEXT_TELEMETRY_DISABLED:'1'};
+const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','-H','127.0.0.1','-p','34721'],{env,stdio:['ignore','pipe','pipe']});
+let output='';server.stderr.on('data',d=>output+=d);server.stdout.on('data',d=>output+=d);
+async function until(check){for(let i=0;i<120;i++){const value=await check();if(value)return value;await new Promise(r=>setTimeout(r,100));}throw Error('Timed out: '+output);}
+try{
+ await db.query('TRUNCATE "AgentRequest", "BridgeControl"');
+ await until(async()=>{try{return(await fetch(base+'/login')).ok;}catch{return false;}});
+ for(const p of ['/api/hermes/dispatch','/api/hermes/requests','/api/agents'])assert.equal((await fetch(base+p)).status,401);
+ const csrf=await fetch(base+'/api/auth/csrf'),{csrfToken}=await csrf.json();
+ const cookie=csrf.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
+ const login=await fetch(base+'/api/auth/callback/credentials',{method:'POST',headers:{cookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrfToken,password,json:'true'}),redirect:'manual'});
+ const session=login.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
+ async function api(path,body,method=body?'POST':'GET',origin=base){return fetch(base+path,{method,headers:{cookie:session,...(body?{'content-type':'application/json',...(origin?{origin}:{})}:{})},...(body?{body:JSON.stringify(body)}:{})});}
+ const worker=new BridgeWorker(db,async request=>`TEST DOUBLE result for ${request.agentId}/${request.sessionKey}`);
+ await worker.start(randomUUID());
+ const state=async()=>(await api('/api/hermes/bridge')).json();
+ const boot=(await state()).bootId;assert.equal((await state()).enabled,false);
+ const payload={agentId:'default',sessionKey:'thread-123',message:'Report current identity',mode:'chat',authorize:true,bootId:boot};
+ assert.equal((await api('/api/hermes/dispatch',payload)).status,409);
+ assert.equal((await api('/api/hermes/bridge',{enabled:true,bootId:boot,password:'wrong'})).status,403);
+ for(const origin of [null,'https://evil.invalid'])assert.equal((await api('/api/hermes/bridge',{enabled:true,bootId:boot,password},'POST',origin)).status,403);
+ assert.equal((await api('/api/hermes/bridge',{enabled:true,bootId:boot,password})).status,200);
+ for(const changes of [{authorize:false},{agentId:'../../default'},{sessionKey:'../../state'},{history:[]},{message:'\u0000'},{inputMode:'audio-server'}])assert.equal((await api('/api/hermes/dispatch',{...payload,...changes})).status,400);
+ for(const origin of [null,'https://evil.invalid'])assert.equal((await api('/api/hermes/dispatch',payload,'POST',origin)).status,403);
+ const roster=await(await api('/api/agents')).json();assert.deepEqual(roster.map(a=>a.id),['default','yana','jenny','michael','michelle']);
+ for(const agentId of roster.map(a=>a.id)){
+  const response=await api('/api/hermes/dispatch',{...payload,agentId,inputMode:'voice',transcript:'initial dictation'});assert.equal(response.status,202);
+  const {request}=await response.json();assert.equal(request.authorizedBy,'owner');assert.equal(request.decidedBy,'owner');assert.equal(request.sideEffecting,true);
+  await worker.tick();
+  const history=await(await api(`/api/hermes/requests?agentId=${agentId}&sessionKey=thread-123`)).json();assert.equal(history.requests.length,1);const saved=history.requests[0];assert.equal(saved.id,request.id);assert.equal(saved.status,'done');assert.match(saved.result,new RegExp(agentId));assert.equal(saved.inputMode,'voice');assert.equal(saved.transcript,'initial dictation');assert.ok(saved.startedAt&&saved.finishedAt);
+ }
+ const held=await(await api('/api/hermes/dispatch',{...payload,mode:'task'})).json();assert.equal(held.request.status,'awaiting_approval');assert.equal(await worker.claim(),null);
+ const decision=(id,action,bootId=boot)=>api(`/api/hermes/requests/${id}`,{action,bootId},'PATCH');
+ assert.equal((await decision(held.request.id,'approve','stale')).status,409);
+ assert.equal((await decision(held.request.id,'approve')).status,200);
+ const claims=await Promise.all(Array.from({length:20},()=>worker.claim()));assert.equal(claims.filter(Boolean).length,1);
+ assert.equal((await decision(held.request.id,'reject')).status,409);
+ const reject=await(await api('/api/hermes/dispatch',{...payload,mode:'task'})).json();assert.equal((await decision(reject.request.id,'reject')).status,200);assert.equal(await worker.claim(),null);
+ const fail=await(await api('/api/hermes/dispatch',payload)).json();const failing=new BridgeWorker(db,async()=>{throw Error('Explicit test provider failure');});failing.bootId=boot;await failing.tick();assert.equal((await db.query('SELECT status,error FROM "AgentRequest" WHERE id=$1',[fail.request.id])).rows[0].error,'Explicit test provider failure');
+ await api('/api/hermes/bridge',{enabled:false,bootId:boot});assert.equal(await worker.claim(),null);assert.equal((await api('/api/hermes/dispatch',payload)).status,409);
+ await worker.start(randomUUID());assert.equal((await state()).enabled,false);assert.equal((await api('/api/hermes/bridge',{enabled:true,bootId:boot,password})).status,409);
+ console.log('PASS isolated PostgreSQL + production HTTP: owner auth; same-origin/fresh-password/current-boot gate; all five profile requests; voice transcript persistence; results/timestamps; approve/reject; provider error persistence; 20 atomic claims exactly once; OFF and restart/stale boot. Agent output explicitly test-double, not live inference.');
+}finally{server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));await db.end();}

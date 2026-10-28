@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {BridgeStatus} from "./mission-control";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
@@ -221,10 +222,10 @@ export function Sidebar() {
         <div className="px-4 py-4 border-t border-[var(--line)]">
           <div className="flex items-center gap-2 text-[var(--text-3)] text-[11.5px]">
             <span className="relative flex w-1.5 h-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--up)] opacity-60 animate-ping" />
-              <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-[var(--up)]" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--text-3)] opacity-60" />
+              <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-[var(--text-3)]" />
             </span>
-            <span>All systems online</span>
+            <BridgeStatus/>
           </div>
         </div>
       </aside>

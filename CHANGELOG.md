@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — genuine multi-profile owner Mission Control
+
+- Replace Max/Sage/demo persona chats with registered MIA/default, YANA, JENNY, MICHAEL and MICHELLE. `/agents`, `/hermes` and `/tasks` share the real profile conversation/task UI.
+- Owner-authorized tool-enabled messages and approval-held tasks run actual Hermes chat CLI with safe stdin, isolated registered profile context and durable named sessions. No -z/YOLO or ignored rules/config.
+- Persist agent/thread, voice/text modality and transcript, authorization/decision identity/times, lifecycle, actual result/error. Functional same-origin approve/reject and polling; startup OFF, password gate, atomic claims, private transport and no crash replay retained.
+- Browser voice dictation offers editable transcript preview and honest unsupported fallback; no server audio/STT or fake agent voice.
+- Truthful global/sidebar bridge status and observed cron/session-store metadata; no invented model/cost/health metrics. Remove fake legacy controls.
+- Add additive SQL upgrade and deployment contract in `MISSION-CONTROL.md`, profile/worker tests and updated isolated PostgreSQL/production HTTP smoke. Provider inference is separately verified by deployment owner; smoke agent fixture is explicitly labelled.
+
+
 ## Unreleased — restricted bridge safety release
 
 - Replace unrestricted prompt/cron/wiki runner with one allowlisted `hermes.version` read operation; remove all automatic briefing, `-z`, filesystem writes and git staging.
