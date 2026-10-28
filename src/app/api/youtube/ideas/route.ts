@@ -15,12 +15,8 @@ export async function GET() {
   }
 }
 
-/** Bulk-import or create a single idea. Requires internal secret header. */
+/** Bulk-import or create a single idea. Owner session required by middleware. */
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-internal-secret");
-  if (secret !== process.env.INTERNAL_API_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const body = await req.json();
   const items: any[] = Array.isArray(body) ? body : [body];

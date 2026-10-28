@@ -1,43 +1,40 @@
-import type { NextAuthOptions } from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
+import type { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { verifyPassword } from './password';
+import { credentialVersion } from './auth-version';
 
-// Pure JWT auth — no DB adapter required.
-// Users are verified via allowedEmails; session is a signed cookie.
-// TODO: Add PrismaAdapter once DB-backed sessions are needed.
+// One process / one owner. Do not key on attacker-controlled forwarding headers.
+// A proxy-level limiter is still required for distributed/replicated deployments.
+let attempts = 0;
+let windowStart = 0;
+let verifying = false;
+
 export const authOptions: NextAuthOptions = {
-  session: { strategy: 'jwt' },
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
-  callbacks: {
-    async signIn({ user }) {
-      // Comma-separated allowlist from env, e.g. ALLOWED_EMAILS="you@example.com,teammate@example.com"
-      const allowedEmails = (process.env.ALLOWED_EMAILS ?? '')
-        .split(',')
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-      if (allowedEmails.length === 0) return false // lock down by default until configured
-      return allowedEmails.includes((user.email ?? '').toLowerCase())
+  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+  providers: [CredentialsProvider({
+    name: 'Owner password',
+    credentials: { password: { label: 'Password', type: 'password' } },
+    async authorize(credentials) {
+      if (!process.env.NEXTAUTH_SECRET) return null;
+      const now = Date.now();
+      if (now - windowStart >= 60_000) { windowStart = now; attempts = 0; }
+      if (verifying || ++attempts > 10) return null;
+      verifying = true;
+      try {
+        if (!await verifyPassword(credentials?.password, process.env.OWNER_PASSWORD_HASH)) return null;
+        return { id: 'owner', name: 'Owner' };
+      } finally { verifying = false; }
     },
+  })],
+  callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.email = user.email
-      }
-      return token
+      if (user) token.credentialVersion = await credentialVersion();
+      return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub ?? ''
-        session.user.email = token.email as string
-      }
-      return session
+      if (session.user) session.user.id = token.sub ?? '';
+      return session;
     },
   },
-  pages: {
-    signIn: '/login',
-  },
-}
+  pages: { signIn: '/login' },
+};

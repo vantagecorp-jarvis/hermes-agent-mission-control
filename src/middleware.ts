@@ -1,41 +1,38 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { credentialVersion } from './lib/auth-version';
+
+const publicAuthPaths = new Set([
+  '/api/auth/csrf', '/api/auth/providers', '/api/auth/session',
+  '/api/auth/signin', '/api/auth/signin/credentials',
+  '/api/auth/callback/credentials', '/api/auth/signout', '/api/auth/error',
+]);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // DEV-ONLY local bypass (never active on Vercel preview/prod builds).
-  if (process.env.NODE_ENV === 'development') {
+  // No development bypass, public garden API, legacy password cookie, or
+  // shared-secret override. Machine callers need a separately reviewed design.
+  if (pathname === '/login' || pathname === '/favicon.ico' ||
+      pathname.startsWith('/_next/') || publicAuthPaths.has(pathname)) {
     return NextResponse.next();
   }
-
-  // Skip auth for NextAuth routes, assets, login, and public embeddable charts
-  if (
-    pathname.startsWith('/api/auth/') ||
-    pathname.startsWith('/api/garden') ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname === '/login'
-  ) {
-    return NextResponse.next();
-  }
-
-  // Allow internal agent calls with shared secret
-  const internalSecret = request.headers.get('x-internal-secret');
-  if (internalSecret && internalSecret === process.env.INTERNAL_API_SECRET) {
-    return NextResponse.next();
-  }
-
-  // Check NextAuth JWT session
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  if (!token) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const token = process.env.NEXTAUTH_SECRET
+    ? await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET }) : null;
+  const version = await credentialVersion();
+  if (!token || token.sub !== 'owner' || !version || token.credentialVersion !== version) {
+    if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.redirect(new URL('/login', request.url));
   }
-
+  // NextAuth supplies its own CSRF protection. Protect cookie-authenticated
+  // application mutations too; compare against configured canonical proxy URL.
+  if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    const origin = request.headers.get('origin');
+    const expected = new URL(process.env.NEXTAUTH_URL || request.url).origin;
+    if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin && origin !== expected)) {
+      return NextResponse.json({ error: 'Forbidden origin' }, { status: 403 });
+    }
+  }
   return NextResponse.next();
 }
 

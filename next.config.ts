@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Vercel-compatible settings
-  output: undefined, // default — Vercel handles this automatically
+  // Minimal Node runtime for the self-hosted Docker image.
+  output: "standalone",
   images: {
     unoptimized: false,
   },
