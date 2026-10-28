@@ -5,7 +5,8 @@ node_modules
 *.log
 coverage
 src-tauri
-hermes-bridge
+hermes-bridge/*
+!hermes-bridge/core.mjs
 scanner
 data/*
 !data/.gitkeep
