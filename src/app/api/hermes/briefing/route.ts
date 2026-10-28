@@ -8,15 +8,5 @@ export async function GET() {
 
 // POST → ask the bridge to (re)generate the chief-of-staff brief now.
 export async function POST() {
-  const row = await prisma.agentRequest.create({
-    data: {
-      origin: "web",
-      kind: "briefing.generate",
-      title: "Generate chief-of-staff brief",
-      prompt: "now",
-      sideEffecting: false,
-      status: "queued",
-    },
-  });
-  return NextResponse.json({ request: row });
+  return NextResponse.json({ error: 'Blocked in read-only bridge release; execution and mutations require approval', approvalRequired: true }, { status: 403 });
 }

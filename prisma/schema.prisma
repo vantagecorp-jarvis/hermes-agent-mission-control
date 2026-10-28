@@ -1,3 +1,11 @@
+// Runtime bridge state. Each bridge boot replaces bootId and resets enabled.
+model BridgeControl {
+  id          String   @id
+  bootId      String
+  enabled     Boolean  @default(false)
+  heartbeatAt DateTime
+}
+
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]

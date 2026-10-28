@@ -10,12 +10,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!["awaiting_approval", "queued"].includes(existing.status))
     return NextResponse.json({ error: `cannot decide a ${existing.status} request` }, { status: 409 });
 
-  const data: Record<string, unknown> = { decidedAt: new Date() };
-  if (action === "approve") data.status = "approved";
-  else if (action === "reject") data.status = "rejected";
-  else if (action === "edit") { data.status = "approved"; if (b.prompt) data.prompt = b.prompt.toString(); if (b.title) data.title = b.title.toString().slice(0, 200); }
-  else return NextResponse.json({ error: "action must be approve|reject|edit" }, { status: 400 });
-
-  const row = await prisma.agentRequest.update({ where: { id }, data });
+  if (action !== "reject") return NextResponse.json({ error: "Approvals and edits are blocked in the read-only bridge release" }, { status: 403 });
+  const data = { decidedAt: new Date(), status: "rejected" };
+  const updated = await prisma.agentRequest.updateMany({ where: { id, status: { in: ["awaiting_approval", "queued"] } }, data });
+  if (!updated.count) return NextResponse.json({ error: "Request already claimed or decided" }, { status: 409 });
+  const row = await prisma.agentRequest.findUnique({ where: { id } });
   return NextResponse.json({ request: row });
 }

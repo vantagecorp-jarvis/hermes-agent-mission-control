@@ -1,4 +1,5 @@
 "use client";
+import { BridgeControl } from "@/components/bridge-control";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -812,9 +813,11 @@ export default function HermesPage() {
           </div>
         </div>
 
+        <BridgeControl />
+        {/* Legacy execution controls are unavailable in this read-only release. */}
         {/* Dispatch */}
         <div className="hq-rise">
-          <DispatchBar onDone={load} />
+          <fieldset disabled className="opacity-50"><DispatchBar onDone={load} /></fieldset>
         </div>
 
         {/* Dispatches — what you've sent Hermes + live status/results */}
@@ -884,7 +887,7 @@ export default function HermesPage() {
               </div>
             </>
           ) : (
-            <CronPanel jobs={jobs} syncedAt={cronSync} onDone={load} />
+            <fieldset disabled className="opacity-50"><CronPanel jobs={jobs} syncedAt={cronSync} onDone={load} /></fieldset>
           )}
         </section>
 

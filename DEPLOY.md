@@ -28,7 +28,7 @@ Store only the resulting hash as `OWNER_PASSWORD_HASH`; use a unique strong pass
 docker compose config --quiet
 docker compose build app schema
 docker compose up -d db
-docker compose run --rm schema db push
+docker compose run --rm schema db push --skip-generate
 docker compose up -d app
 ```
 
@@ -50,18 +50,11 @@ Change the hash and recreate app to revoke old protected-resource JWT access; ro
 
 Back up `.env.production`, `.env.db`, and all three volumes securely. Example DB backup (output is sensitive): `docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql`. Test restore in isolation. Never use `docker compose down -v` on production. Roll back app image/git revision only after checking schema compatibility; restore a backup if a schema change cannot be reversed safely.
 
-## Bridge is BLOCKED — do not start it
+## Restricted bridge — password gated, read-only only
 
-Compose and the runtime image intentionally include **no bridge service**, no host Hermes mounts and no autonomous process. Static inspection plus local `--help` checks found:
+The reviewed bridge now supports **only `hermes.version`**, never agent prompts, cron/kanban mutations, wiki access, daily briefing or `-z`. Every restart starts OFF; enabling requires the owner password again through the authenticated same-origin `/api/hermes/bridge` endpoint and `/hermes` control panel. OFF stops new admissions/claims, not a task already claimed. There is no automatic enable/deployment in this change.
 
-- `hermes -z` exists but its CLI help explicitly says approvals are auto-bypassed. Arbitrary chat/oneshot prompts may have side effects; dispatch trusts the caller's `sideEffecting` boolean. Thus “safe/queued” does **not** enforce safety. Daily briefing also runs `-z` automatically on bridge startup after the configured hour.
-- `memory.write` joins DB-controlled paths to `WIKI_DIR` without containment/symlink validation: traversal can overwrite files outside the wiki. It then stages all wiki changes for git commit.
-- Queue claims use SELECT then UPDATE, not an atomic claim/lease; multiple bridge instances can execute work twice, and failures/restarts can leave running rows stuck.
-- Remote PostgreSQL TLS disables certificate verification. Hostname `db` is also classified as remote and wrongly forced to SSL, incompatible with this template's private non-TLS Postgres. A reviewed private network/tunnel and TLS/role policy are prerequisites; do not publish DB ports.
-- Bridge inherits the host environment/profile with no explicit profile isolation and defaults wiki path to `~/.hermes/wiki`, not the active `HERMES_HOME`. It could operate on the wrong owner's memory/profile.
-- Installed CLI help accepts `-z`, kanban `--board` before command, `create --json`, `cron list --all`, `cron create schedule [prompt]`, and `insights --days`. Actual execution/output shape is **not** tested. Cron edit argv carries no changes; other operation semantics/IDs need contract tests. `execFile` avoids shell interpolation, but arbitrary CLI prompts and argument/option confusion remain a risk.
-
-Before enabling: isolated least-privilege execution profile, no automatic model tool execution from “safe” text, server-owned operation allowlists/approval requirements, safe filesystem paths, atomic leased/idempotent queue, verified TLS/private DB access with restricted roles, and CLI contract tests. Existing requests must be reviewed before any bridge starts.
+See [hermes-bridge/README.md](hermes-bridge/README.md) for full integration requirements, DB privileges, CLI contract and test commands. Apply the additive `BridgeControl` model before deploying this app/bridge version. Compose still intentionally includes no bridge service, host profile mounts, secrets or public Postgres ports. Parent/operator must provision an isolated runtime on the private DB network (or verified private tunnel/TLS), an installed Hermes CLI, the exact approved default/MIA home `/opt/data`, HTTPS/edge limits and runtime credentials. No other Hermes profile may be mounted or altered. Old running rows require explicit reconciliation; never bulk replay legacy requests. Do not enable arbitrary prompts as a shortcut.
 
 ## Known limitations / validation boundary
 

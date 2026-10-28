@@ -8,4 +8,6 @@ The upstream README's **License** section states: “Provided as a template for 
 | --- | --- | --- | --- |
 | vantagecorp-jarvis/hermes-agent-mission-control, baseline above | Existing dashboard, UI, Prisma schema, bridge | README template permission to fork, self-host and adapt; no standalone LICENSE | Owner password authentication, security gate cleanup, Docker templates, tests and deployment documentation |
 
+The restricted bridge safety adaptation adds boot-scoped password control, a single version-read allowlist, atomic claims, profile/DB safeguards, tests and operator documentation. No third-party implementation code was copied for this change; the temporary PostgreSQL test binary is an external test tool, not redistributed in the repository.
+
 Hermes Agent is by Nous Research; this dashboard fork does not imply their endorsement. No upstream onboarding instructions were executed. No bridge was enabled.

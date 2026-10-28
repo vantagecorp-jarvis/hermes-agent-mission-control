@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — restricted bridge safety release
+
+- Replace unrestricted prompt/cron/wiki runner with one allowlisted `hermes.version` read operation; remove all automatic briefing, `-z`, filesystem writes and git staging.
+- Add persistent boot-scoped control, OFF on every restart, fresh owner scrypt verification to enable, process-global password throttling, authenticated explicit same-origin control and visible ON/OFF/offline UI.
+- Serialize admissions/claims with OFF; atomic PostgreSQL claims and singleton advisory lock prevent duplicate processing. OFF never silently cancels claimed work. Crash-stuck requests require manual reconciliation, not automatic replay.
+- Server-owned operation policy blocks all execution/mutations and legacy approvals; caller `sideEffecting:false` cannot bypass safety. Pin approved default/MIA child environment; reject other profile homes. Remove unverified remote DB TLS.
+- Add unit tests, real production HTTP/installed-CLI/PostgreSQL integration smoke and deployment prerequisites. No deployment or enablement performed.
+
 ## Unreleased — private single-owner self-hosting
 
 - Replace Google OAuth login with NextAuth Credentials and a fixed-cost scrypt hash in `OWNER_PASSWORD_HASH`; timing-safe key comparison, bounded input/concurrency and process-local login throttling.
