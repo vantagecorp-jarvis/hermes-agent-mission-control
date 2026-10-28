@@ -1,10 +1,15 @@
 "use client";
 import {useEffect,useRef,useState} from 'react';
-// Browser dictation only: no server recording, no claimed universal support.
-export function VoiceDictation({onTranscript}:{onTranscript:(text:string)=>void}){
+import {Mic,Square} from 'lucide-react';
+type RecognitionEvent={results:ArrayLike<ArrayLike<{transcript:string}>>};
+type Recognition={lang:string;continuous:boolean;interimResults:boolean;onresult:(event:RecognitionEvent)=>void;onerror:(event:{error:string})=>void;onend:()=>void;start:()=>void;stop:()=>void;abort:()=>void};
+type SpeechWindow=Window&{SpeechRecognition?:new()=>Recognition;webkitSpeechRecognition?:new()=>Recognition};
+// Browser dictation only; no server recording or unsupported audio reply controls.
+export function VoiceDictation({onTranscript,compact=false,disabled=false}:{onTranscript:(text:string)=>void;compact?:boolean;disabled?:boolean}){
  const [supported,setSupported]=useState(false),[listening,setListening]=useState(false),[note,setNote]=useState('');
- const recognition=useRef<any>(null);
- useEffect(()=>{const w=window as any;setSupported(!!(w.SpeechRecognition||w.webkitSpeechRecognition)&&window.isSecureContext);return()=>recognition.current?.abort();},[]);
- function start(){try{const w=window as any,R=w.SpeechRecognition||w.webkitSpeechRecognition,r=new R();recognition.current=r;r.lang=navigator.language||'en-US';r.continuous=false;r.interimResults=false;r.onresult=(event:any)=>{const text=Array.from(event.results as any[]).map((result:any)=>result[0].transcript).join(' ');onTranscript(text);setNote('Transcript inserted below. Review/edit it, then explicitly authorize and send.');};r.onerror=(event:any)=>{setNote(`Dictation failed: ${event.error}. Type your request instead.`);setListening(false);};r.onend=()=>setListening(false);r.start();setListening(true);setNote('Listening — nothing is sent to the agent until you authorize and submit.');}catch{setNote('Microphone unavailable. Type your request instead.');setListening(false);}}
- return <div className="space-y-2"><button type="button" className="btn-ghost border rounded p-2" disabled={!supported} onClick={()=>listening?recognition.current?.stop():start()}>{listening?'Stop microphone':'Dictate voice command'}</button><p className="text-sm">{supported?'Browser speech recognition may send audio to your browser vendor. Text replies only; audio is not stored by Mission Control.':'Voice dictation unavailable in this browser or insecure context. Use a supported Chromium browser over HTTPS, or type your request.'}</p><p role="status">{note}</p></div>;
+ const recognition=useRef<Recognition|null>(null);
+ useEffect(()=>{const w=window as SpeechWindow;setSupported(!!(w.SpeechRecognition||w.webkitSpeechRecognition)&&window.isSecureContext);return()=>recognition.current?.abort();},[]);
+ function start(){try{const w=window as SpeechWindow,R=w.SpeechRecognition||w.webkitSpeechRecognition;if(!R)return;const r=new R();recognition.current=r;r.lang=navigator.language||'en-US';r.continuous=false;r.interimResults=false;r.onresult=event=>{onTranscript(Array.from(event.results).map(result=>result[0].transcript).join(' '));setNote('Transcript inserted. Review/edit, then authorize and send.');};r.onerror=event=>{setNote(`Dictation failed: ${event.error}. Type instead.`);setListening(false);};r.onend=()=>setListening(false);r.start();setListening(true);setNote('Listening. Nothing is sent until you authorize and submit.');}catch{setNote('Microphone unavailable. Type instead.');setListening(false);}}
+ const info=supported?'Browser dictation may send audio to your browser vendor. Mission Control stores text only.':'Dictation unavailable in this browser or insecure context. Type instead, or use a supported browser over HTTPS.';
+ return <div className={compact?'mc-dictation':'space-y-2'}><button type="button" className={compact?'mc-icon':'btn-ghost p-2'} aria-label={listening?'Stop dictation':'Dictate message'} title={info} disabled={!supported||disabled} onClick={()=>listening?recognition.current?.stop():start()}>{compact?(listening?<Square size={18}/>:<Mic size={20}/>):listening?'Stop microphone':'Dictate voice command'}</button>{!compact&&<p className="text-sm">{info}</p>}{note&&<p className={compact?'mc-dictation-note':''} role="status">{note}</p>}</div>;
 }

@@ -7,15 +7,15 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "Hermy HQ",
-  description: "Your command center",
+  title: "Mission Control",
+  description: "A conversation with your team.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -24,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" dir="ltr" className="dark">
-      <body className={`${geist.variable} ${geistMono.variable} ${geist.className} bg-[#0a0a0a] text-white min-h-screen`}>
+    <html lang="en" dir="ltr">
+      <body className={`${geist.variable} ${geistMono.variable} ${geist.className} min-h-screen`}>
         <ConditionalLayout>{children}</ConditionalLayout>
       </body>
     </html>

@@ -1,4 +1,5 @@
 @import "tailwindcss" source("../");
+@import "./messenger.css";
 
 /* ── Agent Office Animations ─────────────────────────────── */
 

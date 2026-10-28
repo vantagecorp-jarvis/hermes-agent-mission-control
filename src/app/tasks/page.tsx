@@ -1,2 +1,2 @@
 import {MissionControl} from '@/components/mission-control';
-export default function Page(){return <MissionControl/>;}
+export default function Page(){return <MissionControl initialPanel="tasks"/>;}

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — messenger workspace
+
+- White, conversation-first Mission Control with own-brand typography and responsive mobile/desktop composer. MIA is the primary coordinator; the actual five-agent selector stays inside the composer.
+- Persistent open-conversation tabs and last conversation restoration, searchable latest-200-request history, and editable/deletable browser-local quick tasks. Chips prefill recipient/prompt/mode only; they never authorize or execute. Fresh conversations start with MIA.
+- Preserve editable browser dictation, explicit owner authorization, approval inbox, password-controlled bridge and existing agent/SOUL management. No backend policy, credentials, profile contents or execution behavior changed.
+
 ## Unreleased — genuine multi-profile owner Mission Control
 
 - Replace Max/Sage/demo persona chats with registered MIA/default, YANA, JENNY, MICHAEL and MICHELLE. `/agents`, `/hermes` and `/tasks` share the real profile conversation/task UI.

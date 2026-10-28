@@ -1,29 +1,12 @@
 'use client';
+import Link from 'next/link';
+import {useState} from 'react';
+import {usePathname} from 'next/navigation';
+import {Menu,X} from 'lucide-react';
 
-import { usePathname } from 'next/navigation';
-import { Sidebar } from '@/components/sidebar';
-import { CommandPalette } from '@/components/command-palette';
-
-export function ConditionalLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isStandalone = pathname === '/login';
-
-  if (isStandalone) {
-    return <>{children}</>;
-  }
-
-  return (
-    <div className="flex h-screen">
-      {/* One app-level ambient at the root — outside the scrolling/transformed
-          main, so it's truly viewport-fixed and never scrolls away. */}
-      <div className="hq-ambient" aria-hidden />
-      <Sidebar />
-      <main className="relative flex-1 overflow-auto pt-16 md:pt-0 pb-20 md:pb-0 px-4 sm:px-6 md:px-10 lg:px-12 py-4 md:py-8 page-enter">
-        <div className="pb-safe">
-          {children}
-        </div>
-      </main>
-      <CommandPalette />
-    </div>
-  );
+export function ConditionalLayout({children}:{children:React.ReactNode}){
+ const pathname=usePathname(),[open,setOpen]=useState(false);
+ if(pathname==='/login'||['/','/agents','/hermes','/tasks'].includes(pathname))return <>{children}</>;
+ const management=pathname.startsWith('/settings');
+ return <div className={management?'mc-management':'mc-legacy'}><header className="mc-header"><button className="mc-icon" aria-label={open?'Close menu':'Open menu'} onClick={()=>setOpen(!open)}>{open?<X size={21}/>:<Menu size={21}/>}</button><Link href="/" className="mc-brand">Mission Control.</Link><Link href="/" className="mc-back-chat">Back to chat →</Link></header>{open&&<nav className="mc-compact-nav"><Link href="/" onClick={()=>setOpen(false)}>Chat</Link><Link href="/tasks" onClick={()=>setOpen(false)}>Tasks / Approvals</Link><Link href="/settings/agents" onClick={()=>setOpen(false)}>Agent Management</Link><Link href="/settings" onClick={()=>setOpen(false)}>Settings</Link></nav>}<div className="mc-page-content">{children}</div></div>;
 }
