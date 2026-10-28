@@ -1,3 +1,4 @@
+import {manageSoul, soulOps, validateSoulInput} from './soul.mjs';
 import { registeredProfiles, profileFor, validateAgentInput } from './profiles.mjs';
 export function databaseOptions(connectionString, mode) {
   const url = new URL(connectionString);
@@ -16,13 +17,13 @@ export function hermesInvocation(home) {
 }
 
 export class BridgeWorker {
-  constructor(db, invoke) { this.db = db; this.invoke = invoke; }
+  constructor(db, invoke, soul = manageSoul) { this.db = db; this.invoke = invoke; this.soul = soul; }
   async start(bootId) {
     this.bootId = bootId;
     await this.db.query(`INSERT INTO "BridgeControl" (id, "bootId", enabled, "heartbeatAt") VALUES ('owner',$1,false,now())
       ON CONFLICT (id) DO UPDATE SET "bootId"=$1, enabled=false, "heartbeatAt"=now()`, [bootId]);
     // OFF is established before changing queued approvals; no stale-boot ingress window.
-    await this.db.query(`UPDATE "AgentRequest" SET status='awaiting_approval', "decidedBy"=NULL, "decidedAt"=NULL, "updatedAt"=now() WHERE kind='bridge.agent' AND status='approved'`);
+    await this.db.query(`UPDATE "AgentRequest" SET status='awaiting_approval', "decidedBy"=NULL, "decidedAt"=NULL, "updatedAt"=now() WHERE kind IN ('bridge.agent','soul.write','soul.rollback') AND status='approved'`);
   }
   async heartbeat() {
     const result = await this.db.query(`UPDATE "BridgeControl" SET "heartbeatAt"=now() WHERE id='owner' AND "bootId"=$1 RETURNING id`, [this.bootId]);
@@ -35,16 +36,24 @@ export class BridgeWorker {
         AND "heartbeatAt">now()-interval '15 seconds' FOR UPDATE
     ), candidate AS (
       SELECT r.id FROM "AgentRequest" r, gate WHERE r.status IN ('queued','approved')
-        AND r.kind='bridge.agent' AND r.status='approved' AND r."sideEffecting"=true
-        AND r."authorizedBy"='owner' AND r."authorizedAt" IS NOT NULL AND r."decidedBy"='owner' AND r."decidedAt" IS NOT NULL
+        AND ((r.kind='soul.read' AND r.status='queued' AND r."sideEffecting"=false) OR
+          (r.kind IN ('bridge.agent','soul.write','soul.rollback') AND r.status='approved' AND r."sideEffecting"=true AND r."decidedBy"='owner' AND r."decidedAt" IS NOT NULL))
+        AND r."authorizedBy"='owner' AND r."authorizedAt" IS NOT NULL
         AND r."bootId"=$1 AND r."agentId"=ANY($2::text[])
-        AND r."sessionKey" IS NOT NULL
+        AND (r.kind<>'bridge.agent' OR r."sessionKey" IS NOT NULL)
       ORDER BY r."createdAt" FOR UPDATE OF r SKIP LOCKED LIMIT 1
     ) UPDATE "AgentRequest" r SET status='running', "startedAt"=now(), "updatedAt"=now()
       FROM candidate WHERE r.id=candidate.id RETURNING r.*`, [this.bootId, registeredProfiles.map(p=>p.id)]);
     return rows[0] ?? null;
   }
   async execute(request) {
+    if(soulOps.includes(request.kind)) {
+      const write=request.kind!=='soul.read';
+      if(request.authorizedBy!=='owner'||!request.authorizedAt||request.bootId!==this.bootId||request.sideEffecting!==write||(write&&(request.decidedBy!=='owner'||!request.decidedAt)))throw Error('Missing current-boot owner SOUL authorization/approval');
+      const input=validateSoulInput(JSON.parse(request.prompt));
+      if(input.op!==request.kind||input.agentId!==request.agentId)throw Error('SOUL request identity mismatch');
+      return JSON.stringify(await this.soul(input,{owner:'owner',requestId:request.id,approved:write}));
+    }
     // Version diagnostic remains non-agent; legacy arbitrary kinds never run.
     if (request.kind === 'hermes.version' && request.sideEffecting === false) return this.invoke();
     if (request.kind !== 'bridge.agent' || request.sideEffecting !== true || request.authorizedBy !== 'owner' || !request.authorizedAt || request.decidedBy !== 'owner' || !request.decidedAt || request.bootId !== this.bootId) throw new Error('Missing current-boot owner authorization/approval');

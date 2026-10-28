@@ -1,4 +1,5 @@
 "use client";
+import Link from 'next/link';
 import {useCallback,useEffect,useState} from 'react';
 import {BridgeControl} from './bridge-control';
 import {VoiceDictation} from './voice-dictation';
@@ -32,6 +33,7 @@ export function MissionControl(){
   <div className="flex gap-2 flex-wrap">{agents.map(a=><button key={a.id} onClick={()=>{setAgentId(a.id);setMessage('');setAuthorize(false);setInputMode('text');setTranscript('');}} className={`border rounded p-3 ${agentId===a.id?'border-blue-400':''}`}>{a.name} · {a.status}<br/><small>{a.tasksCompleted} completed MC requests</small></button>)}</div>
   <section className="border rounded-xl p-4 space-y-3">
    <h2 className="font-semibold">{agents.find(a=>a.id===agentId)?.name||agentId} · thread {sessionKey}</h2>
+   <Link className="underline block" href={`/settings/agents?agentId=${agentId}`}>View actual SOUL.md / manage this agent</Link>
    <button className="btn-ghost" onClick={()=>{const key=crypto.randomUUID();localStorage.setItem(`mc-thread-${agentId}`,key);setSessionKey(key);}}>New conversation</button>
    <label className="block">Conversation <select aria-label="Conversation" value={sessionKey} onChange={e=>{setSessionKey(e.target.value);localStorage.setItem(`mc-thread-${agentId}`,e.target.value);}} className="bg-[var(--surface-1)] border p-2 rounded"><option value={sessionKey}>{sessionKey}</option>{[...new Set(rows.map(r=>r.sessionKey).filter(k=>k&&k!==sessionKey))].map(k=><option key={k} value={k}>{k}</option>)}</select></label>
    <label className="block">Mode <select value={mode} onChange={e=>setMode(e.target.value)} className="bg-[var(--surface-1)] border p-2 rounded"><option value="chat">Send authorized message now</option><option value="task">Task — hold for owner approval</option></select></label>

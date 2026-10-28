@@ -5,6 +5,7 @@ import {BridgeStatus} from "./mission-control";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
+  Settings,
   Home,
   Twitter,
   Play,
@@ -49,6 +50,7 @@ const navGroups = [
     name: "System",
     items: [
       { href: "/agents", label: "Agents", icon: Bot },
+      { href: "/settings", label: "Settings", icon: Settings },
       { href: "/memory-wiki", label: "Memory Wiki", icon: BookOpen },
       { href: "/ideas", label: "Ideas", icon: Lightbulb },
       { href: "/garden", label: "Garden", icon: Flower2 },

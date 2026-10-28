@@ -9,6 +9,8 @@ hermes-bridge/*
 !hermes-bridge/core.mjs
 !hermes-bridge/profiles.mjs
 !hermes-bridge/reporting.mjs
+!hermes-bridge/soul-policy.mjs
+!hermes-bridge/soul.mjs
 scanner
 data/*
 !data/.gitkeep
