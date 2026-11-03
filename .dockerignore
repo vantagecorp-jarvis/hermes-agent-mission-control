@@ -11,6 +11,9 @@ hermes-bridge/*
 !hermes-bridge/reporting.mjs
 !hermes-bridge/soul-policy.mjs
 !hermes-bridge/soul.mjs
+!hermes-bridge/token-collector.ts
+!hermes-bridge/token-retrieval.ts
+!hermes-bridge/token-store.ts
 scanner
 data/*
 !data/.gitkeep
