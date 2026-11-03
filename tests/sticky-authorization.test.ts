@@ -7,7 +7,9 @@ test('owner authorization stays selected until explicitly unchecked, without rem
  assert.doesNotMatch(source,/setAuthorize\(false\)/);
  assert.match(source,/setAuthorize\(e.target.checked\)/);
  assert.match(source,/localStorage\.setItem\('mc-tool-authorization-v1'/);
- assert.match(source,/!ready\|\|busy\|\|!authorize/);
+ assert.match(source,/canSendMessage\(\{bridgeReady:ready,busy,authorize,message,sessionKey,mode\}\)/);
+ assert.match(source,/if\(!sendAllowed\)return/);
+ assert.match(source,/disabled=\{!sendAllowed\}/);
  assert.match(source,/Task · approval required/);
  assert.match(source,/until you untick/);
 });

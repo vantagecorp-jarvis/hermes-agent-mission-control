@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — response speed, provenance and answer controls
+
+- Enter sends authorized drafts; Shift+Enter keeps newlines, IME/229 and key-repeat do not submit, and an immediate guard blocks duplicate HTTP submissions. Preserve remembered consent, latest-reply navigation and existing agent-bound quick tasks.
+- Exact read-only chat questions about current dashboard tasks/registered agents now return a durable `dashboard.snapshot` from PostgreSQL without an LLM, even with bridge OFF. Read before insert prevents self-counting; explicit owner/origin/authorization gates remain, and task approvals/tool-execution gates are unchanged.
+- Inline answer provenance/source details, actual recorded queue/execution timing, one-second elapsed clocks and immediate HTTP-pending feedback; missing telemetry stays unknown and no response ETA is invented.
+- Add accessible conversation maximize/restore with Escape, retained draft/voice/consent/normal scroll, and restore the native recipient select arrow. App-only release; no schema migration, bridge restart or profile changes. See `RESPONSE-UX.md` for deployment/acceptance boundaries.
+
 ## Unreleased — messenger workspace
 
 - White, conversation-first Mission Control with own-brand typography and responsive mobile/desktop composer. MIA is the primary coordinator; the actual five-agent selector stays inside the composer.

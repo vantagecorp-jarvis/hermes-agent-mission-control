@@ -1,0 +1,30 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {toggleAnswerView,restoreAnswerOnEscape} from '../src/lib/answer-view';
+test('maximize/restore keeps the original reading position without resetting conversation state',()=>{
+ const expanded=toggleAnswerView({maximized:false,normalScrollTop:0,restoreScrollTop:0},480);
+ assert.deepEqual(expanded,{maximized:true,normalScrollTop:480,restoreScrollTop:480});
+ const restored=toggleAnswerView(expanded,900);
+ assert.deepEqual(restored,{maximized:false,normalScrollTop:480,restoreScrollTop:480});
+ assert.equal(restoreAnswerOnEscape({key:'Escape',defaultPrevented:false},true),true);
+ assert.equal(restoreAnswerOnEscape({key:'Enter',defaultPrevented:false},true),false);
+ assert.equal(restoreAnswerOnEscape({key:'Escape',defaultPrevented:true},true),false);
+ assert.equal(restoreAnswerOnEscape({key:'Escape',defaultPrevented:false},false),false);
+});
+test('top-right maximize control stays available, composer is hidden not unmounted, and viewport retains bounded scrolling',()=>{
+ const source=readFileSync('src/components/mission-control.tsx','utf8');
+ const css=readFileSync('src/app/messenger.css','utf8');
+ assert.match(source,/aria-expanded=\{answerView.maximized\}/);
+ assert.match(source,/aria-controls="mc-answer-region"/);
+ assert.match(source,/Restore conversation layout/);assert.match(source,/Maximize conversation/);
+ assert.match(source,/Minimize2/);assert.match(source,/Maximize2/);
+ assert.match(source,/restoreAnswerOnEscape/);assert.match(source,/useLayoutEffect/);
+ assert.match(source,/scrollRef.current.scrollTop=answerView.restoreScrollTop/);
+ assert.match(source,/<div className="mc-compose-dock">/);
+ assert.doesNotMatch(source,/!answerView.maximized&&.*mc-compose-dock/);
+ assert.match(css,/\.mc-app.is-conversation-maximized>\.mc-compose-dock\{display:none\}/);
+ assert.match(css,/\.mc-app.is-conversation-maximized>\.mc-thread-label\{[^}]*display:flex/);
+ assert.match(css,/\.mc-conversation\{[^}]*overflow-y:auto/);
+ assert.match(css,/\.mc-conversation\{[^}]*overflow-x:hidden/);
+});

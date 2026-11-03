@@ -19,7 +19,7 @@ html body{background:#fff;color:#171717}
 .mc-thread-label>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mc-thread-label button{display:flex;align-items:center;gap:7px;min-height:36px;background:none;border:0;color:#555;white-space:nowrap}
 .mc-thread-label b{background:#eaeaea;padding:1px 6px;border-radius:12px;font-weight:500}
-.mc-conversation{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;outline:none}
+.mc-conversation{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;outline:none}
 .mc-empty{height:100%;min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px 60px;text-align:center}
 .mc-monogram{font-size:88px;font-weight:650;letter-spacing:-9px;color:#e2e2e2;line-height:1.1;margin-bottom:25px;user-select:none}
 .mc-monogram span{color:#d0d0d0}
@@ -42,7 +42,7 @@ html body{background:#fff;color:#171717}
 .mc-composer:focus-within{border-color:#b7b7b7}
 .mc-recipient-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px}
 .mc-recipient{display:flex;align-items:center;gap:6px;font-size:12px;color:#777;padding-left:5px}
-.mc-recipient select{appearance:none;background:none;border:0;font-size:12px;font-weight:650;letter-spacing:.04em;color:#232323;min-height:36px;padding:0 4px;cursor:pointer}
+.mc-recipient select{appearance:auto;background:none;border:0;font-size:12px;font-weight:650;letter-spacing:.04em;color:#232323;min-height:36px;padding:0 4px;cursor:pointer}
 .mc-mode select{border:0;border-radius:20px;background:#eee;color:#4e4e4e;min-height:36px;padding:0 10px;font-size:12px;max-width:180px}
 .mc-composer textarea{display:block;resize:vertical;min-height:62px;max-height:22dvh;width:100%;border:0;outline:none!important;background:transparent;font:inherit;line-height:1.6;padding:10px 5px;color:#151515}
 .mc-composer textarea::placeholder{color:#8a8a8a}
@@ -122,3 +122,12 @@ html body{background:#fff;color:#171717}
 @media(min-width:1100px){.mc-header{padding-left:36px;padding-right:36px}.mc-compose-dock{padding-bottom:max(24px,env(safe-area-inset-bottom))}.mc-empty{padding-bottom:90px}}
 @media(max-width:600px){.mc-header{height:68px;gap:8px;padding-left:10px;padding-right:10px}.mc-brand{font-size:18px;letter-spacing:-.6px}.mc-header-recipient{display:none}.mc-header-actions{gap:6px}.mc-bridge{font-size:9px;gap:5px}.mc-thread-label{padding:4px 20px}.mc-empty{padding-bottom:44px}.mc-monogram{font-size:76px}.mc-empty h1{font-size:22px}.mc-empty p{font-size:12px}.mc-compose-dock{padding:6px 10px max(10px,env(safe-area-inset-bottom));max-height:60dvh}.mc-composer{border-radius:24px;padding:9px 12px}.mc-composer textarea{font-size:16px;min-height:62px}.mc-input-hint{font-size:10px;max-width:205px}.mc-consent{display:block;font-size:10px;padding:6px 6px 0}.mc-consent label{gap:5px}.mc-consent label span{display:none}.mc-consent button{display:block;margin:auto;font-size:10px;min-height:28px}.mc-messages{padding:22px 20px}.mc-owner{max-width:90%}.mc-owner>p{padding:12px 16px}.mc-result{font-size:15px}.mc-page-content{padding:22px 18px}.mc-back-chat{font-size:11px}.mc-panel-content{padding:20px}}
 @media(max-height:560px){.mc-empty{min-height:80px;padding:12px}.mc-monogram{display:none}.mc-thread-label{display:none}.mc-header{height:54px}.mc-consent{padding-top:3px}.mc-composer textarea{min-height:40px}}
+/* Expand the existing region; never unmount draft, voice or consent controls. */
+.mc-thread-label>span{min-width:0;flex:1}
+.mc-thread-label .mc-answer-toggle{margin-left:auto;justify-content:center;min-width:44px;min-height:44px;border-radius:12px}
+.mc-answer-toggle:hover{background:#f2f2f2}
+.mc-app.is-conversation-maximized>.mc-header,.mc-app.is-conversation-maximized>.mc-tabs,.mc-app.is-conversation-maximized>.mc-compose-dock{display:none}
+.mc-app.is-conversation-maximized>.mc-thread-label{display:flex;width:100%;padding-top:max(8px,env(safe-area-inset-top));border-bottom:1px solid #eee}
+.mc-app.is-conversation-maximized>.mc-conversation{padding-bottom:env(safe-area-inset-bottom)}
+@media(max-width:600px){.mc-thread-label{gap:6px;padding-left:10px;padding-right:10px}}
+@media(max-height:560px){.mc-thread-label{display:flex}}

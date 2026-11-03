@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ownerRequest } from '@/lib/owner-request';
 import { validateAgentInput } from '../../../../../hermes-bridge/profiles.mjs';
+import { createDashboardSnapshot } from '@/lib/dashboard-snapshot';
 
 export async function POST(req: Request) {
   const denied = await ownerRequest(req); if (denied) return denied;
   const b = await req.json().catch(() => ({}));
   let input;
   try { input = validateAgentInput(b); } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }); }
+  try {
+    const snapshot = await createDashboardSnapshot(prisma, b);
+    if (snapshot) return NextResponse.json({ request: snapshot }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+  } catch {
+    return NextResponse.json({ error: 'Snapshot unavailable; no answer generated. Database read or persistence failed; retry later.' }, { status: 503 });
+  }
   if (typeof b.bootId !== 'string') return NextResponse.json({error:'Current bootId required'}, {status:400});
   const status = input.mode === 'task' ? 'awaiting_approval' : 'approved';
   const rows = await prisma.$queryRaw<Array<{ id: string }>>`
